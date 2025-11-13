@@ -58,7 +58,7 @@ git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服务器实现"
 
 在PowerShell环境中可能被错误包装为：
 ```powershell
-Invoke-Expression "git tag -a v0.0.1 -m \"发布v0.0 .1版本 - 初始MCP Git服务器实现 ..."
+Invoke-Expression "git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服务器实现""
 ```
 
 这会导致引号转义错误和命令执行失败。
