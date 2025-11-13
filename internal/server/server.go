@@ -316,13 +316,18 @@ func (s *Server) registerTools() {
 }
 
 // createSchema creates a JSON schema for tool input
-func (s *Server) createSchema(title string, properties map[string]interface{}) interface{} {
-	return map[string]interface{}{
+func (s *Server) createSchema(title string, schemaData map[string]interface{}) interface{} {
+	schema := map[string]interface{}{
 		"$schema": "http://json-schema.org/draft-07/schema#",
 		"title":   title,
-		"type":    "object",
-		"properties": properties,
 	}
+	
+	// Copy all fields from schemaData to schema
+	for key, value := range schemaData {
+		schema[key] = value
+	}
+	
+	return schema
 }
 
 // getRepoPath returns the repository path, using the provided path or the configured default
