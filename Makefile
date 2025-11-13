@@ -3,7 +3,7 @@
 # Variables
 BINARY_NAME=go-mcp-git
 BINARY_PATH=./bin/$(BINARY_NAME)
-MAIN_PATH=./cmd/server
+MAIN_PATH=.
 GO_FILES=$(shell find . -name "*.go" -type f)
 
 # Build flags
