@@ -54,9 +54,12 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "git": {
-      "command": "go-mcp-git",
-      "args": ["--repository", "path/to/git/repo"]
+    "go-mcp-git": {
+      "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
+      "args": [
+        "--repository",
+        "https://github.com/pengcunfu/go-mcp-git.git"
+      ]
     }
   }
 }
