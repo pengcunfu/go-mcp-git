@@ -22,6 +22,7 @@
 10. `git_checkout` - 切换分支
 11. `git_show` - 显示提交的内容
 12. `git_branch` - 列出 Git 分支
+13. `git_raw_command` - **新增** 直接执行原始Git命令（绕过shell包装问题）
 
 ## 安装
 
@@ -44,6 +45,39 @@ go build -o go-mcp-git ./cmd/server
 ```bash
 go-mcp-git --repository /path/to/git/repo
 ```
+
+### git_raw_command 工具特别说明
+
+`git_raw_command` 工具是专门为解决在某些环境（如Windsurf IDE）中Git命令被shell包装导致的引号转义问题而设计的。
+
+**问题场景：**
+当执行包含引号的Git命令时，例如：
+```bash
+git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服务器实现"
+```
+
+在PowerShell环境中可能被错误包装为：
+```powershell
+Invoke-Expression "git tag -a v0.0.1 -m \"发布v0.0 .1版本 - 初始MCP Git服务器实现 ..."
+```
+
+这会导致引号转义错误和命令执行失败。
+
+**解决方案：**
+使用 `git_raw_command` 工具可以直接执行原始Git命令，绕过shell包装：
+
+```json
+{
+  "repo_path": "/path/to/repository",
+  "command": "git tag -a v0.0.1 -m \"发布v0.0.1版本 - 初始MCP Git服务器实现\""
+}
+```
+
+**支持的命令示例：**
+- `git tag -a v1.0.0 -m "Release version 1.0.0"`
+- `git commit --amend -m "Updated commit message"`
+- `git push origin --tags`
+- `git config user.name "Your Name"`
 
 ## 配置
 
