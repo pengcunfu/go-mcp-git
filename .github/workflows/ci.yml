@@ -1,0 +1,101 @@
+name: 持续集成
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: 测试
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.21, 1.22]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 设置Go环境
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: 缓存Go模块
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: 安装依赖
+      run: go mod download
+
+    - name: 运行测试
+      run: go test -v -race -coverprofile=coverage.out ./...
+
+    - name: 上传覆盖率到Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.out
+
+  build:
+    name: 构建
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 设置Go环境
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21
+
+    - name: 多平台构建
+      run: |
+        make build-all
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v3
+      with:
+        name: binaries
+        path: bin/
+
+  docker:
+    name: Docker构建
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 构建Docker镜像
+      run: |
+        docker build -t go-mcp-git:latest .
+
+    - name: 测试Docker镜像
+      run: |
+        docker run --rm go-mcp-git:latest --help
+
+  lint:
+    name: 代码检查
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: 设置Go环境
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.21
+
+    - name: Go代码检查
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest

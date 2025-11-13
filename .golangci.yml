@@ -1,0 +1,70 @@
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  misspell:
+    locale: US
+  lll:
+    line-length: 120
+  goimports:
+    local-prefixes: github.com/pengcunfu/go-mcp-git
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - gocyclo
+    - gofmt
+    - goimports
+    - misspell
+    - lll
+    - goconst
+    - gocritic
+    - gofumpt
+    - revive
+  disable:
+    - maligned
+    - dupl
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+    - path: internal/mcp/
+      linters:
+        - lll
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

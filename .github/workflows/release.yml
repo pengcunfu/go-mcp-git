@@ -1,0 +1,137 @@
+name: 构建和发布
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: 构建二进制文件
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Windows
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+          - goos: windows
+            goarch: arm64
+            ext: .exe
+          # Linux
+          - goos: linux
+            goarch: amd64
+            ext: ""
+          - goos: linux
+            goarch: arm64
+            ext: ""
+          # macOS
+          - goos: darwin
+            goarch: amd64
+            ext: ""
+          - goos: darwin
+            goarch: arm64
+            ext: ""
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Go环境
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: 构建二进制文件
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        mkdir -p dist
+        go build -ldflags="-s -w" -o dist/go-mcp-git-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/server
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: go-mcp-git-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/go-mcp-git-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+
+  release:
+    name: 创建发布
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+      
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 下载所有构建产物
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+
+    - name: 列出下载的文件
+      run: find dist -type f -name "*" | sort
+
+    - name: 创建发布
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          dist/go-mcp-git-windows-amd64/go-mcp-git-windows-amd64.exe
+          dist/go-mcp-git-windows-arm64/go-mcp-git-windows-arm64.exe
+          dist/go-mcp-git-linux-amd64/go-mcp-git-linux-amd64
+          dist/go-mcp-git-linux-arm64/go-mcp-git-linux-arm64
+          dist/go-mcp-git-darwin-amd64/go-mcp-git-darwin-amd64
+          dist/go-mcp-git-darwin-arm64/go-mcp-git-darwin-arm64
+        body: |
+          ## go-mcp-git ${{ github.ref_name }}
+          
+          A Model Context Protocol server for Git repository interaction and automation, implemented in Go.
+          
+          ### 📥 Downloads
+          
+          #### Windows
+          - [go-mcp-git-windows-amd64.exe](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-windows-amd64.exe) - Windows x64
+          - [go-mcp-git-windows-arm64.exe](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-windows-arm64.exe) - Windows ARM64
+          
+          #### Linux
+          - [go-mcp-git-linux-amd64](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-linux-amd64) - Linux x64
+          - [go-mcp-git-linux-arm64](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-linux-arm64) - Linux ARM64
+          
+          #### macOS
+          - [go-mcp-git-darwin-amd64](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-darwin-amd64) - macOS Intel (x64)
+          - [go-mcp-git-darwin-arm64](https://github.com/pengcunfu/go-mcp-git/releases/download/${{ github.ref_name }}/go-mcp-git-darwin-arm64) - macOS Apple Silicon (M1/M2/M3)
+          
+          ### 📦 Installation
+          
+          **Windows:**
+          1. Download the appropriate `.exe` file for your architecture
+          2. Rename to `go-mcp-git.exe`
+          3. Place in a directory in your PATH
+          
+          **Linux/macOS:**
+          1. Download the appropriate binary for your system
+          2. Rename to `go-mcp-git`
+          3. Add execute permission: `chmod +x go-mcp-git`
+          4. Move to a directory in your PATH (e.g., `/usr/local/bin`)
+          
+          ### 📖 Documentation
+          
+          - [Documentation](https://github.com/pengcunfu/go-mcp-git/blob/master/README.md)
+          
+          ### 🔧 Quick Start
+          
+          ```bash
+          go-mcp-git --repository /path/to/git/repo
+          ```
+          
+          For more details, please refer to the [README](https://github.com/pengcunfu/go-mcp-git).
+        draft: false
+        prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
