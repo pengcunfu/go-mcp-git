@@ -313,6 +313,26 @@ func (s *Server) registerTools() {
 			"required": []string{"repo_path"},
 		}),
 	}, s.handleGitBranch)
+
+	// Git Raw Command
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_raw_command",
+		Description: "Execute a raw Git command directly (bypasses shell wrapping issues)",
+		InputSchema: s.createSchema("GitRawCommand", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"command": map[string]interface{}{
+					"type":        "string",
+					"description": "Raw Git command to execute (e.g., 'git tag -a v0.0.1 -m \"Release v0.0.1\"')",
+				},
+			},
+			"required": []string{"repo_path", "command"},
+		}),
+	}, s.handleGitRawCommand)
 }
 
 // createSchema creates a JSON schema for tool input
@@ -577,4 +597,19 @@ func getStringSlice(args map[string]interface{}, key string) []string {
 		}
 	}
 	return []string{}
+}
+
+func (s *Server) handleGitRawCommand(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	command := getString(arguments, "command")
+	
+	result, err := s.gitOps.RawCommand(repoPath, command)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
 }

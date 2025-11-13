@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -544,4 +545,33 @@ func parseTimestamp(timestamp string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", timestamp)
+}
+
+// RawCommand executes a raw Git command directly
+func (g *Operations) RawCommand(repoPath, command string) (string, error) {
+	// Parse the command to extract git subcommand and arguments
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	// Ensure the first part is "git"
+	if parts[0] != "git" {
+		return "", fmt.Errorf("command must start with 'git'")
+	}
+
+	// Remove "git" from the beginning
+	args := parts[1:]
+	
+	// Create the command
+	cmd := exec.Command("git", args...)
+	cmd.Dir = repoPath
+	
+	// Execute the command and capture output
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git command failed: %s\nOutput: %s", err.Error(), string(output))
+	}
+	
+	return string(output), nil
 }
