@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/pengcunfu/go-mcp-git/internal/git"
 	"github.com/pengcunfu/go-mcp-git/internal/mcp"
@@ -333,6 +334,171 @@ func (s *Server) registerTools() {
 			"required": []string{"repo_path", "command"},
 		}),
 	}, s.handleGitRawCommand)
+
+	// Git Init
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_init",
+		Description: "Initialize a new Git repository",
+		InputSchema: s.createSchema("GitInit", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path where to initialize the repository",
+				},
+				"bare": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Initialize as bare repository",
+					"default":     false,
+				},
+			},
+			"required": []string{"repo_path"},
+		}),
+	}, s.handleGitInit)
+
+	// Git Push
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_push",
+		Description: "Push changes to remote repository",
+		InputSchema: s.createSchema("GitPush", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"remote": map[string]interface{}{
+					"type":        "string",
+					"description": "Remote name (default: origin)",
+					"default":     "origin",
+				},
+				"refspec": map[string]interface{}{
+					"type":        "string",
+					"description": "Refspec to push (e.g., 'refs/heads/main:refs/heads/main')",
+				},
+				"tags": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Push tags along with commits",
+					"default":     false,
+				},
+			},
+			"required": []string{"repo_path"},
+		}),
+	}, s.handleGitPush)
+
+	// Git List Repositories
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_list_repositories",
+		Description: "List Git repositories in a directory",
+		InputSchema: s.createSchema("GitListRepositories", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"search_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to search for repositories (default: current directory)",
+				},
+				"recursive": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Search recursively in subdirectories",
+					"default":     false,
+				},
+			},
+		}),
+	}, s.handleGitListRepositories)
+
+	// Git Create Tag
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_create_tag",
+		Description: "Create a new Git tag",
+		InputSchema: s.createSchema("GitCreateTag", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"tag_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the tag to create",
+				},
+				"message": map[string]interface{}{
+					"type":        "string",
+					"description": "Tag message (for annotated tags)",
+				},
+				"annotated": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Create annotated tag (default: true)",
+					"default":     true,
+				},
+			},
+			"required": []string{"repo_path", "tag_name"},
+		}),
+	}, s.handleGitCreateTag)
+
+	// Git Delete Tag
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_delete_tag",
+		Description: "Delete a Git tag",
+		InputSchema: s.createSchema("GitDeleteTag", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"tag_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the tag to delete",
+				},
+			},
+			"required": []string{"repo_path", "tag_name"},
+		}),
+	}, s.handleGitDeleteTag)
+
+	// Git List Tags
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_list_tags",
+		Description: "List Git tags",
+		InputSchema: s.createSchema("GitListTags", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"pattern": map[string]interface{}{
+					"type":        "string",
+					"description": "Pattern to filter tags (glob pattern)",
+				},
+			},
+			"required": []string{"repo_path"},
+		}),
+	}, s.handleGitListTags)
+
+	// Git Push Tags
+	s.mcpServer.RegisterTool(mcp.Tool{
+		Name:        "git_push_tags",
+		Description: "Push tags to remote repository",
+		InputSchema: s.createSchema("GitPushTags", map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"repo_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to Git repository",
+				},
+				"remote": map[string]interface{}{
+					"type":        "string",
+					"description": "Remote name (default: origin)",
+					"default":     "origin",
+				},
+				"tag_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Specific tag name to push (leave empty to push all tags)",
+				},
+			},
+			"required": []string{"repo_path"},
+		}),
+	}, s.handleGitPushTags)
 }
 
 // createSchema creates a JSON schema for tool input
@@ -599,11 +765,154 @@ func getStringSlice(args map[string]interface{}, key string) []string {
 	return []string{}
 }
 
+func getBool(args map[string]interface{}, key string, defaultVal bool) bool {
+	if val, ok := args[key]; ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return defaultVal
+}
+
 func (s *Server) handleGitRawCommand(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
 	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
 	command := getString(arguments, "command")
 	
 	result, err := s.gitOps.RawCommand(repoPath, command)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
+}
+
+func (s *Server) handleGitInit(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := getString(arguments, "repo_path")
+	bare := getBool(arguments, "bare", false)
+	
+	result, err := s.gitOps.Init(repoPath, bare)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
+}
+
+func (s *Server) handleGitPush(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	remote := getString(arguments, "remote")
+	refspec := getString(arguments, "refspec")
+	tags := getBool(arguments, "tags", false)
+	
+	result, err := s.gitOps.Push(repoPath, remote, refspec, tags)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
+}
+
+func (s *Server) handleGitListRepositories(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	searchPath := getString(arguments, "search_path")
+	recursive := getBool(arguments, "recursive", false)
+	
+	repositories, err := s.gitOps.ListRepositories(searchPath, recursive)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(repositories) == 0 {
+		return []mcp.TextContent{{
+			Type: "text",
+			Text: "No Git repositories found",
+		}}, nil
+	}
+
+	result := "Found Git repositories:\n"
+	for _, repo := range repositories {
+		result += fmt.Sprintf("- %s\n", repo)
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: strings.TrimSpace(result),
+	}}, nil
+}
+
+func (s *Server) handleGitCreateTag(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	tagName := getString(arguments, "tag_name")
+	message := getString(arguments, "message")
+	annotated := getBool(arguments, "annotated", true)
+	
+	result, err := s.gitOps.CreateTag(repoPath, tagName, message, annotated)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
+}
+
+func (s *Server) handleGitDeleteTag(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	tagName := getString(arguments, "tag_name")
+	
+	result, err := s.gitOps.DeleteTag(repoPath, tagName)
+	if err != nil {
+		return nil, err
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: result,
+	}}, nil
+}
+
+func (s *Server) handleGitListTags(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	pattern := getString(arguments, "pattern")
+	
+	tags, err := s.gitOps.ListTags(repoPath, pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tags) == 0 {
+		return []mcp.TextContent{{
+			Type: "text",
+			Text: "No tags found",
+		}}, nil
+	}
+
+	result := "Tags:\n"
+	for _, tag := range tags {
+		result += fmt.Sprintf("- %s\n", tag)
+	}
+
+	return []mcp.TextContent{{
+		Type: "text",
+		Text: strings.TrimSpace(result),
+	}}, nil
+}
+
+func (s *Server) handleGitPushTags(ctx context.Context, arguments map[string]interface{}) ([]mcp.TextContent, error) {
+	repoPath := s.getRepoPath(getString(arguments, "repo_path"))
+	remote := getString(arguments, "remote")
+	tagName := getString(arguments, "tag_name")
+	
+	result, err := s.gitOps.PushTags(repoPath, remote, tagName)
 	if err != nil {
 		return nil, err
 	}

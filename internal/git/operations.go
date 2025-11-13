@@ -2,11 +2,14 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -574,4 +577,278 @@ func (g *Operations) RawCommand(repoPath, command string) (string, error) {
 	}
 	
 	return string(output), nil
+}
+
+// Init initializes a new Git repository
+func (g *Operations) Init(repoPath string, bare bool) (string, error) {
+	if repoPath == "" {
+		return "", fmt.Errorf("repository path cannot be empty")
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(repoPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	var repo *git.Repository
+	var err error
+
+	if bare {
+		repo, err = git.PlainInitWithOptions(repoPath, &git.PlainInitOptions{
+			Bare: true,
+		})
+	} else {
+		repo, err = git.PlainInit(repoPath, false)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize repository: %w", err)
+	}
+
+	repoType := "regular"
+	if bare {
+		repoType = "bare"
+	}
+
+	_ = repo // avoid unused variable warning
+	return fmt.Sprintf("Initialized empty Git repository (%s) in %s", repoType, repoPath), nil
+}
+
+// Push pushes changes to remote repository
+func (g *Operations) Push(repoPath, remote, refspec string, tags bool) (string, error) {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	// Get remote
+	if remote == "" {
+		remote = "origin"
+	}
+
+	remoteObj, err := repo.Remote(remote)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote '%s': %w", remote, err)
+	}
+
+	// Prepare push options
+	pushOptions := &git.PushOptions{}
+
+	// If refspec is provided, use it
+	if refspec != "" {
+		pushOptions.RefSpecs = []config.RefSpec{config.RefSpec(refspec)}
+	}
+
+	// If tags flag is set, push tags
+	if tags {
+		pushOptions.RefSpecs = append(pushOptions.RefSpecs, config.RefSpec("refs/tags/*:refs/tags/*"))
+	}
+
+	err = remoteObj.Push(pushOptions)
+	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			return "Everything up-to-date", nil
+		}
+		return "", fmt.Errorf("failed to push: %w", err)
+	}
+
+	result := fmt.Sprintf("Successfully pushed to %s", remote)
+	if tags {
+		result += " (including tags)"
+	}
+	if refspec != "" {
+		result += fmt.Sprintf(" with refspec: %s", refspec)
+	}
+
+	return result, nil
+}
+
+// ListRepositories lists Git repositories in a directory
+func (g *Operations) ListRepositories(searchPath string, recursive bool) ([]string, error) {
+	if searchPath == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current directory: %w", err)
+		}
+		searchPath = cwd
+	}
+
+	var repositories []string
+
+	if recursive {
+		err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil // Continue walking even if there's an error
+			}
+
+			if info.IsDir() && info.Name() == ".git" {
+				repoPath := filepath.Dir(path)
+				repositories = append(repositories, repoPath)
+				return filepath.SkipDir // Don't walk into .git directory
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to walk directory: %w", err)
+		}
+	} else {
+		// Check if the current directory is a Git repository
+		gitDir := filepath.Join(searchPath, ".git")
+		if _, err := os.Stat(gitDir); err == nil {
+			repositories = append(repositories, searchPath)
+		}
+	}
+
+	return repositories, nil
+}
+
+// CreateTag creates a new Git tag
+func (g *Operations) CreateTag(repoPath, tagName, message string, annotated bool) (string, error) {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	// Get HEAD commit
+	head, err := repo.Head()
+	if err != nil {
+		return "", fmt.Errorf("failed to get HEAD: %w", err)
+	}
+
+	if annotated {
+		// Create annotated tag
+		_, err = repo.CreateTag(tagName, head.Hash(), &git.CreateTagOptions{
+			Tagger: &object.Signature{
+				Name:  "MCP Git Server",
+				Email: "mcp-git@example.com",
+				When:  time.Now(),
+			},
+			Message: message,
+		})
+	} else {
+		// Create lightweight tag
+		tagRef := plumbing.NewHashReference(plumbing.ReferenceName("refs/tags/"+tagName), head.Hash())
+		err = repo.Storer.SetReference(tagRef)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create tag: %w", err)
+	}
+
+	tagType := "lightweight"
+	if annotated {
+		tagType = "annotated"
+	}
+
+	result := fmt.Sprintf("Created %s tag '%s' at %s", tagType, tagName, head.Hash().String()[:7])
+	if message != "" {
+		result += fmt.Sprintf(" with message: %s", message)
+	}
+
+	return result, nil
+}
+
+// DeleteTag deletes a Git tag
+func (g *Operations) DeleteTag(repoPath, tagName string) (string, error) {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	// Check if tag exists
+	tagRef := plumbing.ReferenceName("refs/tags/" + tagName)
+	_, err = repo.Reference(tagRef, true)
+	if err != nil {
+		return "", fmt.Errorf("tag '%s' not found: %w", tagName, err)
+	}
+
+	// Delete the tag
+	err = repo.Storer.RemoveReference(tagRef)
+	if err != nil {
+		return "", fmt.Errorf("failed to delete tag: %w", err)
+	}
+
+	return fmt.Sprintf("Deleted tag '%s'", tagName), nil
+}
+
+// ListTags lists all Git tags
+func (g *Operations) ListTags(repoPath string, pattern string) ([]string, error) {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	tagRefs, err := repo.Tags()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags: %w", err)
+	}
+
+	var tags []string
+	err = tagRefs.ForEach(func(ref *plumbing.Reference) error {
+		tagName := strings.TrimPrefix(string(ref.Name()), "refs/tags/")
+		
+		// Apply pattern filter if provided
+		if pattern != "" {
+			matched, err := filepath.Match(pattern, tagName)
+			if err != nil {
+				return err
+			}
+			if !matched {
+				return nil
+			}
+		}
+		
+		tags = append(tags, tagName)
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate tags: %w", err)
+	}
+
+	return tags, nil
+}
+
+// PushTags pushes tags to remote repository
+func (g *Operations) PushTags(repoPath, remote string, tagName string) (string, error) {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repository: %w", err)
+	}
+
+	if remote == "" {
+		remote = "origin"
+	}
+
+	remoteObj, err := repo.Remote(remote)
+	if err != nil {
+		return "", fmt.Errorf("failed to get remote '%s': %w", remote, err)
+	}
+
+	var refSpecs []config.RefSpec
+	var message string
+
+	if tagName != "" {
+		// Push specific tag
+		refSpecs = []config.RefSpec{config.RefSpec("refs/tags/" + tagName + ":refs/tags/" + tagName)}
+		message = fmt.Sprintf("Pushed tag '%s' to %s", tagName, remote)
+	} else {
+		// Push all tags
+		refSpecs = []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")}
+		message = fmt.Sprintf("Pushed all tags to %s", remote)
+	}
+
+	err = remoteObj.Push(&git.PushOptions{
+		RefSpecs: refSpecs,
+	})
+
+	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			return "Everything up-to-date", nil
+		}
+		return "", fmt.Errorf("failed to push tags: %w", err)
+	}
+
+	return message, nil
 }
