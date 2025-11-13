@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/storage/memory"
 )
 
 func createTestRepo(t *testing.T) (string, *git.Repository) {
@@ -59,13 +58,13 @@ func TestOperations_Status(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	ops := NewOperations()
-	
+
 	// Test clean status
 	status, err := ops.Status(tempDir)
 	if err != nil {
 		t.Fatalf("Status failed: %v", err)
 	}
-	
+
 	if status != "working tree clean" {
 		t.Errorf("Expected clean status, got: %s", status)
 	}
