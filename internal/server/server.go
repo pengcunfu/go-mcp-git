@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pengcunfu/go-mcp-git/internal/git"
@@ -57,12 +58,8 @@ func (s *Server) registerTools() {
 		InputSchema: s.createSchema("GitStatus", map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"repo_path": map[string]interface{}{
-					"type":        "string",
-					"description": "Path to Git repository",
-				},
+				"repo_path": s.createRepoPathProperty(),
 			},
-			"required": []string{"repo_path"},
 		}),
 	}, s.handleGitStatus)
 
@@ -516,17 +513,81 @@ func (s *Server) createSchema(title string, schemaData map[string]interface{}) i
 	return schema
 }
 
-// getRepoPath returns the repository path, using the provided path or the configured default
+// createRepoPathProperty creates a standard repo_path property for tool schemas
+func (s *Server) createRepoPathProperty() map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "string",
+		"description": "Path to Git repository (optional: auto-detects current Git repository if not provided)",
+	}
+}
+
+// getRepoPath returns the repository path, using intelligent path resolution
 func (s *Server) getRepoPath(providedPath string) string {
+	// 1. 如果提供了路径，处理相对路径和特殊符号
 	if providedPath != "" {
+		// 处理特殊路径符号
+		switch providedPath {
+		case ".", "./":
+			// 当前目录
+			if cwd, err := os.Getwd(); err == nil {
+				return cwd
+			}
+		case "..":
+			// 父目录
+			if cwd, err := os.Getwd(); err == nil {
+				return filepath.Dir(cwd)
+			}
+		}
+		
+		// 处理相对路径
+		if !filepath.IsAbs(providedPath) {
+			if cwd, err := os.Getwd(); err == nil {
+				return filepath.Join(cwd, providedPath)
+			}
+		}
+		
 		return providedPath
 	}
+	
+	// 2. 使用服务器配置的默认仓库路径
 	if s.repository != "" {
 		return s.repository
 	}
-	// Default to current directory
+	
+	// 3. 自动检测：从当前目录向上查找Git仓库
+	if repoPath := s.findGitRepository(); repoPath != "" {
+		return repoPath
+	}
+	
+	// 4. 最后回退到当前目录
 	cwd, _ := os.Getwd()
 	return cwd
+}
+
+// findGitRepository 从当前目录向上查找Git仓库
+func (s *Server) findGitRepository() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	
+	// 向上遍历目录树查找.git目录
+	currentDir := cwd
+	for {
+		gitDir := filepath.Join(currentDir, ".git")
+		if _, err := os.Stat(gitDir); err == nil {
+			return currentDir
+		}
+		
+		// 到达根目录，停止查找
+		parentDir := filepath.Dir(currentDir)
+		if parentDir == currentDir {
+			break
+		}
+		currentDir = parentDir
+	}
+	
+	return ""
 }
 
 // Tool handlers

@@ -64,6 +64,50 @@ go build -o go-mcp-git ./cmd/server
 go-mcp-git --repository /path/to/git/repo
 ```
 
+### 智能路径解析
+
+**repo_path参数现在是可选的！** MCP服务器会智能地解析仓库路径：
+
+#### 路径解析优先级
+1. **提供的路径** - 如果指定了`repo_path`参数
+2. **服务器配置** - 启动时通过`--repository`参数配置的默认路径
+3. **自动检测** - 从当前工作目录向上查找Git仓库
+4. **当前目录** - 最后回退到当前工作目录
+
+#### 支持的路径格式
+```json
+// 绝对路径
+{"repo_path": "/absolute/path/to/repository"}
+
+// 相对路径
+{"repo_path": "../parent-repo"}
+{"repo_path": "./current-dir"}
+
+// 特殊符号
+{"repo_path": "."}     // 当前目录
+{"repo_path": ".."}    // 父目录
+
+// 省略参数（自动检测）
+{}  // 自动查找Git仓库
+```
+
+#### 使用示例
+```json
+// 最简单的用法 - 自动检测当前Git仓库
+{
+  "command": "git status"
+}
+
+// 指定相对路径
+{
+  "repo_path": "../other-project"
+}
+
+// 使用服务器配置的默认路径
+// 启动: go-mcp-git --repository /path/to/main/repo
+{}  // 将使用 /path/to/main/repo
+```
+
 ### git_raw_command 工具特别说明
 
 `git_raw_command` 工具是专门为解决在某些环境（如Windsurf IDE）中Git命令被shell包装导致的引号转义问题而设计的。
@@ -157,8 +201,19 @@ Invoke-Expression "git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服�
 
 ### 与 Claude Desktop 一起使用
 
-在您的 `claude_desktop_config.json` 中添加以下配置：
+#### 方式1：自动检测（推荐）
+```json
+{
+  "mcpServers": {
+    "go-mcp-git": {
+      "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe"
+    }
+  }
+}
+```
+*服务器将自动检测当前工作目录中的Git仓库*
 
+#### 方式2：指定默认仓库
 ```json
 {
   "mcpServers": {
@@ -166,12 +221,29 @@ Invoke-Expression "git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服�
       "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
       "args": [
         "--repository",
-        "https://github.com/pengcunfu/go-mcp-git.git"
+        "D:\\Projects\\my-main-project"
       ]
     }
   }
 }
 ```
+*所有操作默认使用指定的仓库路径*
+
+#### 方式3：详细配置
+```json
+{
+  "mcpServers": {
+    "go-mcp-git": {
+      "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
+      "args": [
+        "--repository", "D:\\Projects\\main-repo",
+        "--verbose"
+      ]
+    }
+  }
+}
+```
+*启用详细日志输出*
 
 ## 许可证
 
