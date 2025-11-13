@@ -23,7 +23,7 @@ type Server struct {
 
 // New creates a new MCP Git server
 func New(repository string, verbose int) *Server {
-	mcpServer := mcp.NewServer("go-mcp-git", "0.0.1")
+	mcpServer := mcp.NewServer("go-mcp-git", "0.0.2")
 	gitOps := git.NewOperations()
 
 	server := &Server{
