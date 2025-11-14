@@ -60,9 +60,26 @@ go build -o go-mcp-git ./cmd/server
 
 ## 使用方法
 
+### 基本用法
 ```bash
 go-mcp-git --repository /path/to/git/repo
 ```
+
+### 配置用户信息
+```bash
+go-mcp-git --user-name "pengcunfu" --user-email "3173484026@qq.com"
+```
+
+### 完整参数
+```bash
+go-mcp-git --repository /path/to/git/repo --user-name "pengcunfu" --user-email "3173484026@qq.com" --verbose
+```
+
+### 命令行参数说明
+- `--repository, -r`: 指定Git仓库路径（可选，支持自动检测）
+- `--user-name, -u`: 设置Git提交时使用的用户名
+- `--user-email, -e`: 设置Git提交时使用的邮箱地址
+- `--verbose, -v`: 启用详细日志输出（可重复使用增加详细程度）
 
 ### 智能路径解析
 
@@ -229,7 +246,23 @@ Invoke-Expression "git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服�
 ```
 *所有操作默认使用指定的仓库路径*
 
-#### 方式3：详细配置
+#### 方式3：配置用户信息（推荐）
+```json
+{
+  "mcpServers": {
+    "go-mcp-git": {
+      "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
+      "args": [
+        "--user-name", "pengcunfu",
+        "--user-email", "3173484026@qq.com"
+      ]
+    }
+  }
+}
+```
+*配置Git提交时使用的用户名和邮箱*
+
+#### 方式4：完整配置
 ```json
 {
   "mcpServers": {
@@ -237,13 +270,15 @@ Invoke-Expression "git tag -a v0.0.1 -m "发布v0.0.1版本 - 初始MCP Git服�
       "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
       "args": [
         "--repository", "D:\\Projects\\main-repo",
+        "--user-name", "pengcunfu",
+        "--user-email", "3173484026@qq.com",
         "--verbose"
       ]
     }
   }
 }
 ```
-*启用详细日志输出*
+*完整配置：指定仓库路径、用户信息和详细日志*
 
 ## 许可证
 

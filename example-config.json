@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "go-mcp-git": {
+      "command": "D:\\Tools\\MCP\\go-mcp-git\\go-mcp-git.exe",
+      "args": [
+        "--user-name", "pengcunfu",
+        "--user-email", "3173484026@qq.com"
+      ]
+    }
+  }
+}

@@ -15,11 +15,37 @@ import (
 )
 
 // Operations provides Git operations
-type Operations struct{}
+type Operations struct{
+	userName  string
+	userEmail string
+}
 
 // NewOperations creates a new Git operations instance
-func NewOperations() *Operations {
-	return &Operations{}
+func NewOperations(userName, userEmail string) *Operations {
+	return &Operations{
+		userName:  userName,
+		userEmail: userEmail,
+	}
+}
+
+// getUserSignature returns the user signature for commits and tags
+func (g *Operations) getUserSignature() *object.Signature {
+	name := g.userName
+	email := g.userEmail
+	
+	// Use default values if not configured
+	if name == "" {
+		name = "MCP Git Server"
+	}
+	if email == "" {
+		email = "mcp-git@example.com"
+	}
+	
+	return &object.Signature{
+		Name:  name,
+		Email: email,
+		When:  time.Now(),
+	}
 }
 
 // Status returns the working tree status
@@ -214,11 +240,7 @@ func (g *Operations) Commit(repoPath, message string) (string, error) {
 
 	// Create commit
 	hash, err := worktree.Commit(message, &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "MCP Git Server",
-			Email: "mcp-git@example.com",
-			When:  time.Now(),
-		},
+		Author: g.getUserSignature(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to commit: %w", err)
@@ -719,11 +741,7 @@ func (g *Operations) CreateTag(repoPath, tagName, message string, annotated bool
 	if annotated {
 		// Create annotated tag
 		_, err = repo.CreateTag(tagName, head.Hash(), &git.CreateTagOptions{
-			Tagger: &object.Signature{
-				Name:  "MCP Git Server",
-				Email: "mcp-git@example.com",
-				When:  time.Now(),
-			},
+			Tagger:  g.getUserSignature(),
 			Message: message,
 		})
 	} else {

@@ -11,6 +11,8 @@ import (
 var (
 	repository string
 	verbose    int
+	userName   string
+	userEmail  string
 )
 
 func main() {
@@ -23,6 +25,8 @@ func main() {
 
 	rootCmd.Flags().StringVarP(&repository, "repository", "r", "", "Git repository path")
 	rootCmd.Flags().CountVarP(&verbose, "verbose", "v", "Verbose output")
+	rootCmd.Flags().StringVarP(&userName, "user-name", "u", "", "Git user name for commits")
+	rootCmd.Flags().StringVarP(&userEmail, "user-email", "e", "", "Git user email for commits")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
@@ -32,7 +36,7 @@ func main() {
 func runServer(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	
-	srv := server.New(repository, verbose)
+	srv := server.New(repository, verbose, userName, userEmail)
 	if err := srv.Serve(ctx); err != nil {
 		log.Fatal(err)
 	}

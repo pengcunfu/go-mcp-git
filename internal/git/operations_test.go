@@ -57,7 +57,7 @@ func TestOperations_Status(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Test clean status
 	status, err := ops.Status(tempDir)
@@ -90,7 +90,7 @@ func TestOperations_Add(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create a new file
 	newFile := filepath.Join(tempDir, "new.txt")
@@ -114,7 +114,7 @@ func TestOperations_Commit(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create and add a new file
 	newFile := filepath.Join(tempDir, "new.txt")
@@ -143,7 +143,7 @@ func TestOperations_CreateBranch(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create a new branch
 	result, err := ops.CreateBranch(tempDir, "test-branch", "")
@@ -161,7 +161,7 @@ func TestOperations_Checkout(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create a new branch first
 	_, err := ops.CreateBranch(tempDir, "test-branch", "")
@@ -185,7 +185,7 @@ func TestOperations_Log(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Get log
 	commits, err := ops.Log(tempDir, 10, "", "")
@@ -208,7 +208,7 @@ func TestOperations_Branch(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create a test branch
 	_, err := ops.CreateBranch(tempDir, "test-branch", "")
@@ -231,7 +231,7 @@ func TestOperations_Reset(t *testing.T) {
 	tempDir, _ := createTestRepo(t)
 	defer os.RemoveAll(tempDir)
 
-	ops := NewOperations()
+	ops := NewOperations("Test User", "test@example.com")
 
 	// Create and add a new file
 	newFile := filepath.Join(tempDir, "new.txt")

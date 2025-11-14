@@ -19,18 +19,22 @@ type Server struct {
 	gitOps     *git.Operations
 	repository string
 	verbose    int
+	userName   string
+	userEmail  string
 }
 
 // New creates a new MCP Git server
-func New(repository string, verbose int) *Server {
+func New(repository string, verbose int, userName, userEmail string) *Server {
 	mcpServer := mcp.NewServer("go-mcp-git", "0.0.2")
-	gitOps := git.NewOperations()
+	gitOps := git.NewOperations(userName, userEmail)
 
 	server := &Server{
 		mcpServer:  mcpServer,
 		gitOps:     gitOps,
 		repository: repository,
 		verbose:    verbose,
+		userName:   userName,
+		userEmail:  userEmail,
 	}
 
 	server.registerTools()
